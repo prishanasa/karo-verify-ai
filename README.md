@@ -2,8 +2,7 @@
 
 ## Project info
 
-**URL**: https://karo-verify-ai.vercel.app/auth
-
+**URL**: https://karo-verify-p61quxd0n-prishanasas-projects.vercel.app
 
 
 
