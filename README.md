@@ -54,6 +54,90 @@ cd karo-verify-ai
 npm install
 # or
 yarn install
+## 🛠 Configuration
+
+Create a `.env` file in the **root directory** of your project and add the following environment variables:
+
+bash
+# Supabase Configuration
+VITE_SUPABASE_URL=<your_supabase_url>
+VITE_SUPABASE_ANON_KEY=<your_supabase_anon_key>
+
+# Optional: Add other environment keys here as needed
+# Example:
+# VITE_API_BASE_URL=<your_backend_api_url>
+# VITE_ENVIRONMENT=development
+
+##Features
+# 🔍 OCR (Optical Character Recognition)
+# Extracts text such as Name, DOB, and ID Number from uploaded ID cards.
+
+# 🧠 Face Similarity Detection
+# Compares the live/selfie photo with the ID card photo to verify identity.
+# 📂 Document Upload System
+# Allows secure uploading of ID cards and photos.
+
+# ⚙ Fuzzy Logic Fraud Scoring
+# Calculates a fraud score based on text and face match confidence.
+
+# 📊 Verification Dashboard
+# Displays extracted data, similarity scores, and overall verification results.
+
+# 🌐 Responsive Web Interface
+# Works seamlessly on desktops, tablets, and mobile devices.
+
+# 🧾 Error Handling & Validation
+# Validates image formats and handles invalid or unclear uploads gracefully.
+
+# 🧩 Modular Code Structure
+# Clean and extensible codebase for easy maintenance and upgrades.
+
+##Project Structure
+karo-verify-ai/
+├── public/             # Static assets
+├── src/                # Source code
+│   ├── components/     # Reusable UI components
+│   ├── pages/          # Application pages
+│   ├── styles/         # Tailwind and custom styles
+│   └── utils/          # Helper functions
+├── supabase/           # Supabase client and backend integration
+├── .env                # Environment variables
+├── package.json        # Project dependencies and scripts
+├── tsconfig.json       # TypeScript configuration
+├── vite.config.ts      # Vite configuration
+└── README.md           # Project documentation
+
+##Usage
+# ▶️ Run the Project Locally
+# Start the development server and open it in your browser.
+npm run dev
+# or
+yarn dev
+
+# 🌐 Open in Browser
+# Visit the local URL to view the app.
+# Default: http://localhost:5173
+
+# 🔑 Authentication
+# Navigate to /auth to sign up or log in to your account.
+# 📊 Verification Dashboard
+# Upload documents or images for verification.
+# View extracted text, similarity scores, and fraud analysis.
+# Manage user profile and account settings.
+
+# 🏗 Build for Production
+# Create an optimized production build of the app.
+npm run build
+# or
+yarn build
+
+# 🚀 Deployment
+# Deploy the 'dist' folder to your preferred hosting platform.
+# Example: Vercel, Netlify, or any static hosting service.
+
+# 🧩 Extend Functionality
+# Add new pages or components in the 'src' folder
+# to enhance and customize the project features.
 
 
 
