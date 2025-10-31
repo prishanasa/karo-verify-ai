@@ -22,7 +22,7 @@
 
 ## About
 karo-verify-ai is a front-end verification interface built with modern web technologies (Vite + React + TypeScript + Tailwind CSS) and styled using shadcn-ui.  
-The live demo is available at: [karo-verify-ai.vercel.app](https://karo-verify-ai.vercel.app/auth)   https://karo-verify-ai.lovable.app/auth
+The live demo is available at: [karo-verify-ai.vercel.app] (https://karo-verify-ai.vercel.app/auth)   https://karo-verify-ai.lovable.app/auth
 
 This repository contains the UI layer which integrates with backend services (e.g., Supabase) to provide an end-to-end verification experience.
 
