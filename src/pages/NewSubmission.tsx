@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -15,8 +15,25 @@ const NewSubmission = () => {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+
+  // Auto-start camera when entering step 2 and no selfie exists
+  useEffect(() => {
+    if (step === 2 && !selfieFile && !stream) {
+      startCamera();
+    }
+  }, [step, selfieFile, stream]);
+
+  // Clean up camera when component unmounts
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach((track) => track.stop());
+      }
+    };
+  }, [stream]);
 
   const handleIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -31,6 +48,7 @@ const NewSubmission = () => {
 
   const startCamera = async () => {
     try {
+      setCameraLoading(true);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
         video: { facingMode: "user" },
       });
@@ -39,8 +57,10 @@ const NewSubmission = () => {
         videoRef.current.srcObject = mediaStream;
       }
     } catch (error) {
-      toast.error("Failed to access camera");
+      toast.error("Failed to access camera. Please check your camera permissions.");
       console.error(error);
+    } finally {
+      setCameraLoading(false);
     }
   };
 
@@ -250,7 +270,15 @@ const NewSubmission = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {stream ? (
+                      {cameraLoading ? (
+                        <div className="bg-muted p-12 rounded-lg text-center">
+                          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
+                          <p className="font-medium">Starting camera...</p>
+                          <p className="text-sm text-muted-foreground mt-1">
+                            Please allow camera access if prompted
+                          </p>
+                        </div>
+                      ) : stream ? (
                         <div>
                           <video
                             ref={videoRef}
