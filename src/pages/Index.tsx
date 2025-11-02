@@ -10,13 +10,16 @@ const Index = () => {
       const { data: { session } } = await supabase.auth.getSession();
       
       if (session) {
-        const { data: profile } = await supabase
-          .from("profiles")
+        const { data: userRole } = await supabase
+          .from("user_roles" as any)
           .select("role")
-          .eq("id", session.user.id)
-          .single();
+          .eq("user_id", session.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
         
-        if (profile?.role === "admin") {
+        const isAdmin = !!userRole;
+        
+        if (isAdmin) {
           navigate("/admin");
         } else {
           navigate("/app");

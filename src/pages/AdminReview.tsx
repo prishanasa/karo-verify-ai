@@ -15,10 +15,24 @@ const AdminReview = () => {
   const [submission, setSubmission] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [idImageUrl, setIdImageUrl] = useState<string | null>(null);
+  const [selfieImageUrl, setSelfieImageUrl] = useState<string | null>(null);
 
   useEffect(() => {
     fetchSubmission();
   }, [id]);
+
+  useEffect(() => {
+    const loadImages = async () => {
+      if (submission) {
+        const idUrl = await getImageUrl(submission.id_image_url);
+        const selfieUrl = await getImageUrl(submission.selfie_image_url);
+        setIdImageUrl(idUrl);
+        setSelfieImageUrl(selfieUrl);
+      }
+    };
+    loadImages();
+  }, [submission]);
 
   const fetchSubmission = async () => {
     try {
@@ -58,10 +72,16 @@ const AdminReview = () => {
     }
   };
 
-  const getImageUrl = (path: string | null) => {
+  const getImageUrl = async (path: string | null) => {
     if (!path) return null;
-    const { data } = supabase.storage.from("kyc-documents").getPublicUrl(path);
-    return data.publicUrl;
+    const { data, error } = await supabase.storage
+      .from("kyc-documents")
+      .createSignedUrl(path, 300); // 5 minute expiry
+    if (error) {
+      console.error("Failed to create signed URL:", error);
+      return null;
+    }
+    return data?.signedUrl || null;
   };
 
   if (loading) {
@@ -156,7 +176,7 @@ const AdminReview = () => {
                     <h3 className="font-semibold mb-2">ID Document</h3>
                     {submission.id_image_url ? (
                       <img
-                        src={getImageUrl(submission.id_image_url) || ""}
+                        src={idImageUrl || ""}
                         alt="ID Document"
                         className="w-full rounded-lg border"
                       />
@@ -168,7 +188,7 @@ const AdminReview = () => {
                     <h3 className="font-semibold mb-2">Selfie</h3>
                     {submission.selfie_image_url ? (
                       <img
-                        src={getImageUrl(submission.selfie_image_url) || ""}
+                        src={selfieImageUrl || ""}
                         alt="Selfie"
                         className="w-full rounded-lg border"
                       />

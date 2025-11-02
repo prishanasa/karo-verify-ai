@@ -26,13 +26,16 @@ const Auth = () => {
     const checkSession = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
-        const { data: profile } = await supabase
-          .from("profiles")
+        const { data: userRole } = await supabase
+          .from("user_roles" as any)
           .select("role")
-          .eq("id", session.user.id)
-          .single();
+          .eq("user_id", session.user.id)
+          .eq("role", "admin")
+          .maybeSingle();
         
-        if (profile?.role === "admin") {
+        const isAdmin = !!userRole;
+        
+        if (isAdmin) {
           navigate("/admin");
         } else {
           navigate("/app");
@@ -59,15 +62,18 @@ const Auth = () => {
         if (error) throw error;
 
         if (data.user) {
-          const { data: profile } = await supabase
-            .from("profiles")
+          const { data: userRole } = await supabase
+            .from("user_roles" as any)
             .select("role")
-            .eq("id", data.user.id)
-            .single();
+            .eq("user_id", data.user.id)
+            .eq("role", "admin")
+            .maybeSingle();
+
+          const isAdmin = !!userRole;
 
           toast.success("Welcome back!");
           
-          if (profile?.role === "admin") {
+          if (isAdmin) {
             navigate("/admin");
           } else {
             navigate("/app");
@@ -90,15 +96,18 @@ const Auth = () => {
         if (data.user) {
           toast.success("Account created! Redirecting...");
           
-          // Wait a moment for the profile to be created by trigger
+          // Wait a moment for the user_roles to be created by trigger
           setTimeout(async () => {
-            const { data: profile } = await supabase
-              .from("profiles")
+            const { data: userRole } = await supabase
+              .from("user_roles" as any)
               .select("role")
-              .eq("id", data.user!.id)
-              .single();
+              .eq("user_id", data.user!.id)
+              .eq("role", "admin")
+              .maybeSingle();
 
-            if (profile?.role === "admin") {
+            const isAdmin = !!userRole;
+
+            if (isAdmin) {
               navigate("/admin");
             } else {
               navigate("/app");

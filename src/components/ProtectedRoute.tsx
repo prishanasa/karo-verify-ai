@@ -26,13 +26,16 @@ const ProtectedRoute = ({ children, requireAdmin = false }: ProtectedRouteProps)
         setUser(session.user);
 
         if (requireAdmin) {
-          const { data: profile } = await supabase
-            .from("profiles")
+          const { data: userRole } = await supabase
+            .from("user_roles" as any)
             .select("role")
-            .eq("id", session.user.id)
-            .single();
+            .eq("user_id", session.user.id)
+            .eq("role", "admin")
+            .maybeSingle();
 
-          if (profile?.role !== "admin") {
+          const isAdmin = !!userRole;
+
+          if (!isAdmin) {
             navigate("/app");
             return;
           }
