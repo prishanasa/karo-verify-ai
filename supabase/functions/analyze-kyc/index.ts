@@ -125,9 +125,17 @@ serve(async (req) => {
       );
     }
 
-    // Rate limiting - prevent re-analysis within 5 minutes
-    if (submission.updated_at) {
-      const lastUpdate = new Date(submission.updated_at);
+    // Rate limiting - prevent re-analysis within 5 minutes (only if already analyzed)
+    const { data: submissionFull } = await supabase
+      .from('submissions')
+      .select('ai_scores, updated_at')
+      .eq('id', submission_id)
+      .single();
+    
+    const hasBeenAnalyzed = submissionFull?.ai_scores && Object.keys(submissionFull.ai_scores).length > 0;
+    
+    if (hasBeenAnalyzed && submissionFull?.updated_at) {
+      const lastUpdate = new Date(submissionFull.updated_at);
       const timeSinceUpdate = Date.now() - lastUpdate.getTime();
       
       if (timeSinceUpdate < 5 * 60 * 1000) {
