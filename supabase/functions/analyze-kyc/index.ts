@@ -228,7 +228,7 @@ serve(async (req) => {
             content: [
               {
                 type: 'text',
-                text: 'Compare the faces in these two images. The first is from an ID document, the second is a selfie. Return JSON with: similarity_score (0-100), match (boolean), confidence_level (low/medium/high), notes (any observations).'
+                text: 'Compare the faces in these two images. The first is from an ID document, the second is a selfie. Also rate the image quality (0-100). Return JSON with: similarity_score (0-100), match (boolean), confidence_level (low/medium/high), image_quality_score (0-100), notes (any observations).'
               },
               {
                 type: 'image_url',
@@ -297,14 +297,35 @@ serve(async (req) => {
     }
 
     // Combine all analysis results
+    const imageQualityScore = faceAnalysis.image_quality_score || 75;
+    const faceMatchConfidence = faceAnalysis.similarity_score || 0;
+    const faceMatch = faceAnalysis.match || false;
+    const fraudDetected = fraudAnalysis.is_fraudulent || false;
+    const fraudReason = fraudDetected ? 
+      (fraudAnalysis.fraud_indicators?.join(', ') || 'Suspicious document detected') : 
+      null;
+
     const aiScores = {
-      similarity_score: faceAnalysis.similarity_score || 0,
+      similarity_score: faceMatchConfidence,
       match_confidence: faceAnalysis.confidence_level || 'low',
       features_analyzed: faceAnalysis.notes || '',
       fraud_score: fraudAnalysis.fraud_risk_score || 0,
       risk_level: fraudAnalysis.confidence || 'medium',
       fraud_indicators: fraudAnalysis.fraud_indicators || [],
-      ai_recommendation: fraudAnalysis.is_fraudulent ? 'reject' : 'review'
+      ai_recommendation: fraudDetected ? 'reject' : 'review'
+    };
+
+    const frontendResponse = {
+      image_quality_score: imageQualityScore,
+      extracted_data: {
+        name: extractedData.name || null,
+        dob: extractedData.date_of_birth || null,
+        id_number: extractedData.id_number || null
+      },
+      face_match: faceMatch,
+      face_match_confidence: faceMatchConfidence,
+      fraud_detected: fraudDetected,
+      fraud_reason: fraudReason
     };
 
     // Update submission with analysis results
@@ -331,15 +352,16 @@ serve(async (req) => {
       user_id: user.id,
       submission_id: submission_id,
       action: 'analysis_completed',
-      results: { similarity_score: aiScores.similarity_score, fraud_score: aiScores.fraud_score }
+      results: { 
+        similarity_score: aiScores.similarity_score, 
+        fraud_score: aiScores.fraud_score,
+        face_match: faceMatch,
+        fraud_detected: fraudDetected
+      }
     });
 
     return new Response(
-      JSON.stringify({
-        success: true,
-        extracted_data: extractedData,
-        ai_scores: aiScores
-      }),
+      JSON.stringify(frontendResponse),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 

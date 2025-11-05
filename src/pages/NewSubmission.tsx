@@ -1,12 +1,13 @@
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import { ArrowLeft, Upload, Camera, Loader2 } from "lucide-react";
+import { ArrowLeft, Upload, Loader2, CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 const NewSubmission = () => {
   const navigate = useNavigate();
@@ -15,25 +16,7 @@ const NewSubmission = () => {
   const [selfieFile, setSelfieFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [analyzing, setAnalyzing] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(false);
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const [stream, setStream] = useState<MediaStream | null>(null);
-
-  // Auto-start camera when entering step 2 and no selfie exists
-  useEffect(() => {
-    if (step === 2 && !selfieFile && !stream) {
-      startCamera();
-    }
-  }, [step, selfieFile, stream]);
-
-  // Clean up camera when component unmounts
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
-    };
-  }, [stream]);
+  const [verificationResult, setVerificationResult] = useState<any>(null);
 
   const handleIdUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -46,61 +29,14 @@ const NewSubmission = () => {
     }
   };
 
-  const startCamera = async () => {
-    setCameraLoading(true);
-    try {
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          facingMode: "user",
-          width: { ideal: 1280 },
-          height: { ideal: 720 }
-        },
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        // Wait for the video to actually load
-        await videoRef.current.play();
+  const handleSelfieUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error("File size must be less than 10MB");
+        return;
       }
-      
-      setStream(mediaStream);
-      setCameraLoading(false);
-    } catch (error: any) {
-      setCameraLoading(false);
-      const errorMessage = error.name === "NotAllowedError" 
-        ? "Camera permission denied. Please allow camera access and try again."
-        : error.name === "NotFoundError"
-        ? "No camera found on your device."
-        : "Failed to access camera. Please check your camera permissions.";
-      
-      toast.error(errorMessage);
-      console.error("Camera error:", error);
-    }
-  };
-
-  const stopCamera = () => {
-    if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
-      setStream(null);
-    }
-  };
-
-  const takeSelfie = () => {
-    if (videoRef.current) {
-      const canvas = document.createElement("canvas");
-      canvas.width = videoRef.current.videoWidth;
-      canvas.height = videoRef.current.videoHeight;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(videoRef.current, 0, 0);
-        canvas.toBlob((blob) => {
-          if (blob) {
-            const file = new File([blob], "selfie.jpg", { type: "image/jpeg" });
-            setSelfieFile(file);
-            stopCamera();
-          }
-        }, "image/jpeg");
-      }
+      setSelfieFile(file);
     }
   };
 
@@ -151,7 +87,7 @@ const NewSubmission = () => {
 
       // Call AI analysis edge function
       try {
-        const { data: aiResult } = await supabase.functions.invoke("analyze-kyc", {
+        const { data: aiResult, error: aiError } = await supabase.functions.invoke("analyze-kyc", {
           body: {
             submission_id: submission.id,
             id_image_path: idPath,
@@ -159,14 +95,15 @@ const NewSubmission = () => {
           },
         });
 
+        if (aiError) throw aiError;
+        
         console.log("AI Analysis completed:", aiResult);
+        setVerificationResult(aiResult);
+        setStep(4); // Move to results step
       } catch (aiError) {
         console.error("AI analysis failed:", aiError);
-        // Don't fail the submission if AI analysis fails
+        toast.error("AI verification failed. Please try again.");
       }
-
-      toast.success("Documents submitted successfully!");
-      navigate("/app");
     } catch (error: any) {
       toast.error(error.message || "Failed to submit documents");
       console.error(error);
@@ -176,7 +113,7 @@ const NewSubmission = () => {
     }
   };
 
-  const progress = (step / 3) * 100;
+  const progress = (step / 4) * 100;
 
   return (
     <ProtectedRoute>
@@ -194,7 +131,7 @@ const NewSubmission = () => {
           <Card className="shadow-card">
             <CardHeader>
               <CardTitle className="text-2xl">Submit Your Documents</CardTitle>
-              <CardDescription>Complete the verification process in 3 simple steps</CardDescription>
+              <CardDescription>Complete the verification process in 4 simple steps</CardDescription>
               <Progress value={progress} className="mt-4" />
             </CardHeader>
             <CardContent>
@@ -252,9 +189,9 @@ const NewSubmission = () => {
 
               {step === 2 && (
                 <div className="space-y-4">
-                  <h3 className="text-xl font-semibold">Step 2: Take a Selfie</h3>
+                  <h3 className="text-xl font-semibold">Step 2: Upload Selfie</h3>
                   <p className="text-muted-foreground">
-                    Take a clear selfie for identity verification
+                    Upload a clear selfie for identity verification
                   </p>
                   {selfieFile ? (
                     <div className="space-y-4">
@@ -266,13 +203,10 @@ const NewSubmission = () => {
                       <div className="flex gap-2">
                         <Button
                           variant="outline"
-                          onClick={() => {
-                            setSelfieFile(null);
-                            startCamera();
-                          }}
+                          onClick={() => setSelfieFile(null)}
                           className="flex-1"
                         >
-                          Retake
+                          Change
                         </Button>
                         <Button
                           onClick={() => setStep(3)}
@@ -284,41 +218,22 @@ const NewSubmission = () => {
                     </div>
                   ) : (
                     <div className="space-y-4">
-                      {cameraLoading ? (
-                        <div className="bg-muted p-12 rounded-lg text-center">
-                          <Loader2 className="w-12 h-12 animate-spin mx-auto mb-4 text-primary" />
-                          <p className="font-medium">Starting camera...</p>
+                      <label htmlFor="selfie-upload" className="cursor-pointer">
+                        <div className="border-2 border-dashed border-primary rounded-lg p-12 text-center hover:bg-muted/50 transition-colors">
+                          <Upload className="w-12 h-12 mx-auto mb-4 text-primary" />
+                          <p className="text-lg font-medium">Click to upload selfie</p>
                           <p className="text-sm text-muted-foreground mt-1">
-                            Please allow camera access if prompted
+                            JPG, PNG, or WEBP (max 10MB)
                           </p>
                         </div>
-                      ) : stream ? (
-                        <div>
-                          <video
-                            ref={videoRef}
-                            autoPlay
-                            playsInline
-                            className="w-full rounded-lg border"
-                          />
-                          <Button
-                            onClick={takeSelfie}
-                            className="w-full mt-4 bg-gradient-button"
-                            size="lg"
-                          >
-                            <Camera className="w-5 h-5 mr-2" />
-                            Capture Selfie
-                          </Button>
-                        </div>
-                      ) : (
-                        <Button
-                          onClick={startCamera}
-                          className="w-full bg-gradient-button"
-                          size="lg"
-                        >
-                          <Camera className="w-5 h-5 mr-2" />
-                          Start Camera
-                        </Button>
-                      )}
+                      </label>
+                      <input
+                        id="selfie-upload"
+                        type="file"
+                        accept="image/jpeg,image/jpg,image/png,image/webp"
+                        onChange={handleSelfieUpload}
+                        className="hidden"
+                      />
                       <Button variant="outline" onClick={() => setStep(1)} className="w-full">
                         Back
                       </Button>
@@ -329,7 +244,7 @@ const NewSubmission = () => {
 
               {step === 3 && (
                 <div className="space-y-6">
-                  <h3 className="text-xl font-semibold">Step 3: Review & Submit</h3>
+                  <h3 className="text-xl font-semibold">Step 3: Review & Verify</h3>
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm font-medium mb-2">ID Document</p>
@@ -353,10 +268,10 @@ const NewSubmission = () => {
                     </div>
                   </div>
                   {analyzing && (
-                    <div className="bg-muted p-4 rounded-lg text-center">
-                      <Loader2 className="w-8 h-8 animate-spin mx-auto mb-2 text-primary" />
-                      <p className="font-medium">AI is analyzing your documents...</p>
-                      <p className="text-sm text-muted-foreground">This may take a few moments</p>
+                    <div className="bg-muted p-6 rounded-lg text-center">
+                      <Loader2 className="w-12 h-12 animate-spin mx-auto mb-3 text-primary" />
+                      <p className="font-semibold text-lg">AI Verification in Progress...</p>
+                      <p className="text-sm text-muted-foreground mt-2">Checking image quality, extracting data, and verifying authenticity</p>
                     </div>
                   )}
                   <div className="flex gap-2">
@@ -377,13 +292,100 @@ const NewSubmission = () => {
                       {uploading ? (
                         <>
                           <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                          Submitting...
+                          Verifying...
                         </>
                       ) : (
-                        "Submit Documents"
+                        "Start Verification"
                       )}
                     </Button>
                   </div>
+                </div>
+              )}
+              {step === 4 && verificationResult && (
+                <div className="space-y-6">
+                  <h3 className="text-xl font-semibold">Step 4: Verification Results</h3>
+                  
+                  {verificationResult.fraud_detected && (
+                    <Alert variant="destructive">
+                      <XCircle className="h-5 w-5" />
+                      <AlertTitle>Fraud Detected</AlertTitle>
+                      <AlertDescription>{verificationResult.fraud_reason}</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {!verificationResult.fraud_detected && verificationResult.face_match && (
+                    <Alert className="border-green-500 text-green-700">
+                      <CheckCircle className="h-5 w-5" />
+                      <AlertTitle>Verification Successful</AlertTitle>
+                      <AlertDescription>All checks passed successfully</AlertDescription>
+                    </Alert>
+                  )}
+
+                  {!verificationResult.fraud_detected && !verificationResult.face_match && (
+                    <Alert variant="destructive">
+                      <AlertCircle className="h-5 w-5" />
+                      <AlertTitle>Face Mismatch</AlertTitle>
+                      <AlertDescription>The selfie does not match the ID photo</AlertDescription>
+                    </Alert>
+                  )}
+
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm font-medium mb-1">Image Quality</p>
+                        <p className="text-2xl font-bold">{verificationResult.image_quality_score}%</p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {verificationResult.image_quality_score >= 80 ? "Excellent" : 
+                           verificationResult.image_quality_score >= 60 ? "Good" : "Poor"}
+                        </p>
+                      </div>
+                      <div className="p-4 border rounded-lg">
+                        <p className="text-sm font-medium mb-1">Face Match</p>
+                        <p className="text-2xl font-bold">
+                          {verificationResult.face_match ? (
+                            <CheckCircle className="w-8 h-8 text-green-500" />
+                          ) : (
+                            <XCircle className="w-8 h-8 text-red-500" />
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {verificationResult.face_match_confidence}% confidence
+                        </p>
+                      </div>
+                    </div>
+
+                    {verificationResult.extracted_data && (
+                      <div className="p-4 border rounded-lg space-y-2">
+                        <p className="font-semibold mb-3">Extracted Information</p>
+                        {verificationResult.extracted_data.name && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Full Name</p>
+                            <p className="font-medium">{verificationResult.extracted_data.name}</p>
+                          </div>
+                        )}
+                        {verificationResult.extracted_data.dob && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">Date of Birth</p>
+                            <p className="font-medium">{verificationResult.extracted_data.dob}</p>
+                          </div>
+                        )}
+                        {verificationResult.extracted_data.id_number && (
+                          <div>
+                            <p className="text-xs text-muted-foreground">ID Number</p>
+                            <p className="font-medium">{verificationResult.extracted_data.id_number}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <Button
+                    onClick={() => navigate("/app")}
+                    className="w-full bg-gradient-button"
+                    size="lg"
+                  >
+                    Go to Dashboard
+                  </Button>
                 </div>
               )}
             </CardContent>
