@@ -47,20 +47,34 @@ const NewSubmission = () => {
   };
 
   const startCamera = async () => {
+    setCameraLoading(true);
     try {
-      setCameraLoading(true);
       const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: "user" },
+        video: { 
+          facingMode: "user",
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        },
       });
-      setStream(mediaStream);
+      
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
+        // Wait for the video to actually load
+        await videoRef.current.play();
       }
-    } catch (error) {
-      toast.error("Failed to access camera. Please check your camera permissions.");
-      console.error(error);
-    } finally {
+      
+      setStream(mediaStream);
       setCameraLoading(false);
+    } catch (error: any) {
+      setCameraLoading(false);
+      const errorMessage = error.name === "NotAllowedError" 
+        ? "Camera permission denied. Please allow camera access and try again."
+        : error.name === "NotFoundError"
+        ? "No camera found on your device."
+        : "Failed to access camera. Please check your camera permissions.";
+      
+      toast.error(errorMessage);
+      console.error("Camera error:", error);
     }
   };
 
