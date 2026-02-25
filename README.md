@@ -36,6 +36,14 @@ This repository contains the UI layer which integrates with backend services (e.
 - **Supabase** — Backend services (authentication, database)
 
 ---
+From days of manual verification to minutes with AI automation.
+<img width="1269" height="592" alt="image" src="https://github.com/user-attachments/assets/79f142a0-f75a-4016-83aa-c39651259451" />
+
+<img width="975" height="485" alt="image" src="https://github.com/user-attachments/assets/81b47ca0-643a-4205-aa3c-8795d2cc21ac" />
+
+<img width="2832" height="1430" alt="image" src="https://github.com/user-attachments/assets/0cc961e6-c52c-406b-885c-05bcdf7c66f3" />
+
+
 
 ## Getting Started
 
